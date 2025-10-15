@@ -3,9 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>接Pa小幫手 (Template-Based V3.6)</title>
+    <title>接Pa小幫手 (優化版 V3.8)</title>
     <!-- 載入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 載入 Google Font: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         /* 設定字體為 Inter */
         html { font-family: 'Inter', sans-serif; }
@@ -36,12 +40,14 @@
         }
     </style>
     <script>
+        // 設定 Tailwind CSS 的主題
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
                         'primary': '#10b981', /* Emerald 500 */
                         'secondary': '#60a5fa', /* Blue 400 */
+                        'danger': '#f43f5e', /* Rose 500 */
                         'bg-light': '#f9fafb',
                     }
                 }
@@ -53,8 +59,8 @@
 
     <div class="max-w-7xl mx-auto">
         <header class="text-center mb-8">
-            <h1 class="text-3xl font-extrabold text-gray-900 mb-2">接PA小幫手 (Template-Based V3.6)</h1>
-            <p class="text-gray-500">已整合正確的動態更新邏輯，確保否認症狀可隨主訴多次變更。</p>
+            <h1 class="text-3xl font-extrabold text-gray-900 mb-2">接PA小幫手 (優化版 V3.8)</h1>
+            <p class="text-gray-500">新增主訴性質選項，並優化使用者提示。</p>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -131,14 +137,23 @@
                             <div id="selected-cc-tag" class="mt-3 flex flex-wrap gap-2 min-h-[20px]"></div>
                         </div>
 
-                        <div class="grid grid-cols-3 gap-4 mt-4">
-                            <label class="block col-span-2">
-                                <span class="text-gray-700 text-sm">持續時間 (Duration)</span>
-                                <input type="number" id="cc-duration-value" placeholder="e.g. 3" class="mt-1 w-full rounded-l-md border-gray-300 shadow-sm p-2" required>
+                        <div class="grid grid-cols-6 gap-4 mt-4 items-end">
+                            <label class="block col-span-6 sm:col-span-3">
+                                <span class="text-gray-700 text-sm">主訴性質 (CC Character)</span>
+                                <select id="cc-character" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                                    <option value="progressive" selected>Progressive (漸進性)</option>
+                                    <option value="sudden onset">Sudden Onset (突發性)</option>
+                                    <option value="intermittent">Intermittent (間歇性)</option>
+                                    <option value="recurrent">Recurrent (反覆性)</option>
+                                </select>
                             </label>
-                            <label class="block">
+                            <label class="block col-span-4 sm:col-span-2">
+                                <span class="text-gray-700 text-sm">持續時間 (Duration)</span>
+                                <input type="number" id="cc-duration-value" placeholder="e.g. 3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" required>
+                            </label>
+                            <label class="block col-span-2 sm:col-span-1">
                                 <span class="text-gray-700 text-sm opacity-0 select-none">Unit</span>
-                                <select id="cc-duration-unit" class="mt-1 w-full rounded-r-md border-gray-300 shadow-sm p-2" required>
+                                <select id="cc-duration-unit" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" required>
                                     <option value="day(s)">day(s)</option>
                                     <option value="week(s)">week(s)</option>
                                     <option value="month(s)">month(s)</option>
@@ -150,6 +165,7 @@
                             <label class="block">
                                 <span class="text-gray-700 text-sm">HPI 詳細描述 (HPI Narrative)</span>
                                 <textarea id="hpi-narrative" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="e.g. progressive yellowish skin discoloration"></textarea>
+                                <p class="text-xs text-gray-500 mt-1">註：此欄位若留白，將依主訴性質自動生成描述；若填寫，則會完全取代自動描述。</p>
                             </label>
                         </div>
                         
@@ -220,7 +236,6 @@
                                 <textarea id="er-management" rows="3" class="mt-1 w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="e.g. IV fluid hydration was given, and abdominal CT was arranged."></textarea>
                             </label>
                             
-                            <!-- RESTORED LAB SECTION -->
                             <div class="mb-4 text-sm">
                                 <label class="block">
                                     <span class="text-gray-700 text-sm font-medium">貼上原始報告 (Raw Lab Text)</span>
@@ -230,7 +245,6 @@
                                     <span class="text-gray-500 text-xs">自動提取的關鍵結果將顯示在這裡...</span>
                                 </div>
                             </div>
-                            <!-- END RESTORED LAB SECTION -->
 
                              <div class="grid grid-cols-2 gap-4">
                                 <label class="block">
@@ -277,9 +291,14 @@
                 
                 <textarea id="output-note" readonly rows="20" class="flex-grow w-full border-2 border-gray-200 rounded-lg p-4 font-mono text-sm resize-none bg-gray-50 mb-4 focus:outline-none"></textarea>
 
-                <button id="copy-button" class="bg-secondary hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 shadow-md">
-                    複製病歷文字 (Copy Note)
-                </button>
+                <div class="flex items-center gap-4">
+                    <button id="copy-button" class="flex-grow bg-secondary hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 shadow-md">
+                        複製病歷文字 (Copy Note)
+                    </button>
+                    <button id="clear-form-button" class="bg-danger hover:bg-rose-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 shadow-md">
+                        清除表單 (Clear Form)
+                    </button>
+                </div>
                 <div id="copy-message" class="text-sm text-center text-primary mt-2 hidden">已成功複製!</div>
             </div>
 
@@ -486,6 +505,112 @@
         let selectedSymptoms = [];
         let selectedCC = []; 
         let selectedIMP = [];
+        
+        const LOCAL_STORAGE_KEY = 'paHelperFormData_v1';
+
+        // --- 自動暫存功能 (LocalStorage) ---
+        function saveFormState() {
+            const form = document.getElementById('note-form');
+            const formData = new FormData(form);
+            const formValues = Object.fromEntries(formData.entries());
+
+            const deniedSymptomsState = {};
+            document.querySelectorAll('.denied-sym-checkbox').forEach(cb => {
+                deniedSymptomsState[cb.dataset.key] = cb.checked;
+            });
+
+            const stateToSave = {
+                formValues,
+                selectedUDs,
+                selectedSymptoms,
+                selectedCC,
+                selectedIMP,
+                deniedSymptoms: deniedSymptomsState,
+                deniedSymptomsCC: selectedCC.length > 0 ? selectedCC[0].code : 'DEFAULT',
+            };
+
+            try {
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
+            } catch (error) {
+                console.error("無法儲存狀態:", error);
+            }
+        }
+
+        function loadFormState() {
+            try {
+                const savedStateJSON = localStorage.getItem(LOCAL_STORAGE_KEY);
+                if (!savedStateJSON) return;
+
+                const savedState = JSON.parse(savedStateJSON);
+
+                // 恢復 Tag 狀態
+                selectedUDs = savedState.selectedUDs || [];
+                selectedSymptoms = savedState.selectedSymptoms || [];
+                selectedCC = savedState.selectedCC || [];
+                selectedIMP = savedState.selectedIMP || [];
+
+                // 恢復表單欄位值
+                for (const key in savedState.formValues) {
+                    const element = document.getElementById(key);
+                    if (element) {
+                        if (element.type === 'checkbox') {
+                            element.checked = savedState.formValues[key] === 'on';
+                        } else {
+                            element.value = savedState.formValues[key];
+                        }
+                    }
+                }
+                
+                // 觸發 UI 更新
+                renderSelectedUDs();
+                renderSelectedSymptoms();
+                renderSelectedIMP();
+                renderSelectedCC(); // 這會觸發 denied symptoms 的渲染
+                
+                // 恢復否認症狀的勾選狀態
+                const currentCC = selectedCC.length > 0 ? selectedCC[0].code : 'DEFAULT';
+                if (currentCC === savedState.deniedSymptomsCC && savedState.deniedSymptoms) {
+                    for (const key in savedState.deniedSymptoms) {
+                         const checkbox = document.querySelector(`.denied-sym-checkbox[data-key="${key}"]`);
+                         if(checkbox) {
+                             checkbox.checked = savedState.deniedSymptoms[key];
+                         }
+                    }
+                }
+
+                toggleObgynSection();
+                toggleOpdSection();
+                generateNote(); // 最後產生一次 Note
+
+            } catch (error) {
+                console.error("無法載入狀態:", error);
+                localStorage.removeItem(LOCAL_STORAGE_KEY);
+            }
+        }
+        
+        function clearFormState() {
+            if (confirm('您確定要清除所有已輸入的內容與暫存紀錄嗎？此操作無法復原。')) {
+                localStorage.removeItem(LOCAL_STORAGE_KEY);
+                
+                selectedUDs = [];
+                selectedSymptoms = [];
+                selectedCC = [];
+                selectedIMP = [];
+                
+                document.getElementById('note-form').reset();
+                
+                renderSelectedUDs();
+                renderSelectedSymptoms();
+                renderSelectedIMP();
+                renderSelectedCC();
+                
+                toggleObgynSection();
+                toggleOpdSection();
+                generateNote();
+                document.getElementById('lab-summary-output').innerHTML = '<span class="text-gray-500 text-xs">自動提取的關鍵結果將顯示在這裡...</span>';
+            }
+        }
+
 
         // --- Helper functions for search and tag rendering ---
         function renderSelectedTags(containerId, dataArray, removeFunction, type) {
@@ -495,7 +620,9 @@
             if (dataArray.length === 0) {
                 container.textContent = '請搜索並選擇...';
                 container.classList.add('text-gray-400', 'italic', 'text-sm');
-                generateNote();
+                if (type !== 'CC') { // CC的generateNote在renderDeniedSymptoms中調用
+                    generateNote();
+                }
                 return;
             }
             container.classList.remove('text-gray-400', 'italic', 'text-sm');
@@ -507,7 +634,9 @@
                 tag.onclick = (e) => { e.stopPropagation(); removeFunction(item.code); };
                 container.appendChild(tag);
             });
-            generateNote();
+            if (type !== 'CC') {
+                generateNote();
+            }
         }
 
         function handleSearchInput(event, typeFilter, suggestionsDivId, addFunction) {
@@ -612,7 +741,14 @@
                 container.appendChild(label);
             });
             
-            container.querySelectorAll('.denied-sym-checkbox').forEach(checkbox => checkbox.addEventListener('change', generateNote));
+            // BUG FIX: Ensure checkbox changes call both generateNote and saveFormState
+            container.querySelectorAll('.denied-sym-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    generateNote();
+                    saveFormState();
+                });
+            });
+            generateNote(); // 確保在渲染否認症狀後立即更新Note
         }
 
         function toggleObgynSection() {
@@ -723,7 +859,10 @@
             const durationVal = document.getElementById('cc-duration-value').value;
             const durationUnit = document.getElementById('cc-duration-unit').value;
             const durationText = durationVal ? ` for ${durationVal} ${durationUnit}` : '';
-            const hpiNarrative = document.getElementById('hpi-narrative').value || `progressive ${cc}`;
+            
+            const ccCharacter = document.getElementById('cc-character').value;
+            const hpiNarrative = document.getElementById('hpi-narrative').value || `${ccCharacter} ${cc}`;
+
             const associatedSymptoms = selectedSymptoms.length > 0 ? ` accompanied by ${selectedSymptoms.map(s => s.english).join(', ')}` : '';
             
             const deniedSymptoms = Array.from(document.querySelectorAll('.denied-sym-checkbox:checked'))
@@ -818,7 +957,10 @@
         // Event Listeners Setup
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('note-form');
-            form.addEventListener('input', generateNote);
+            form.addEventListener('input', () => {
+                generateNote();
+                saveFormState(); // 在每次輸入後都儲存狀態
+            });
 
             document.getElementById('gender').addEventListener('change', toggleObgynSection);
             document.getElementById('visited-opd').addEventListener('change', toggleOpdSection);
@@ -849,17 +991,11 @@
                     setTimeout(() => msg.classList.add('hidden'), 2000);
                 });
             });
+            
+            document.getElementById('clear-form-button').addEventListener('click', clearFormState);
 
             // Initial Render
-            renderSelectedUDs();
-            renderSelectedSymptoms();
-            renderSelectedIMP();
-            toggleObgynSection();
-            toggleOpdSection();
-            
-            renderSelectedCC(); 
-            
-            generateNote();
+            loadFormState(); // 頁面載入時，嘗試恢復上次的狀態
         });
     </script>
 </body>
