@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>接Pa小幫手 (優化版 V3.8)</title>
+    <title>接Pa小幫手 (優化版 V3.8.3)</title>
     <!-- 載入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 載入 Google Font: Inter -->
@@ -59,8 +59,8 @@
 
     <div class="max-w-7xl mx-auto">
         <header class="text-center mb-8">
-            <h1 class="text-3xl font-extrabold text-gray-900 mb-2">接PA小幫手 (優化版 V3.8)</h1>
-            <p class="text-gray-500">新增主訴性質選項，並優化使用者提示。</p>
+            <h1 class="text-3xl font-extrabold text-gray-900 mb-2">接PA小幫手 (優化版 V3.8.3)</h1>
+            <p class="text-gray-500">修正暫存邏輯，確保點擊選擇的項目能被正確儲存。</p>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -220,9 +220,9 @@
                                     </select>
                                 </div>
                                 <div class="grid grid-cols-3 gap-2 mt-2 text-sm">
-                                    <input type="number" id="gcs-e" placeholder="E" value="4" class="p-1.5 rounded-md border-gray-300">
-                                    <input type="number" id="gcs-v" placeholder="V" value="5" class="p-1.5 rounded-md border-gray-300">
-                                    <input type="number" id="gcs-m" placeholder="M" value="6" class="p-1.5 rounded-md border-gray-300">
+                                    <input type="text" id="gcs-e" placeholder="E" value="4" class="p-1.5 rounded-md border-gray-300">
+                                    <input type="text" id="gcs-v" placeholder="V" value="5" class="p-1.5 rounded-md border-gray-300">
+                                    <input type="text" id="gcs-m" placeholder="M" value="6" class="p-1.5 rounded-md border-gray-300">
                                 </div>
                             </div>
 
@@ -511,8 +511,17 @@
         // --- 自動暫存功能 (LocalStorage) ---
         function saveFormState() {
             const form = document.getElementById('note-form');
-            const formData = new FormData(form);
-            const formValues = Object.fromEntries(formData.entries());
+            const formValues = {};
+            // 手動迭代以正確儲存複選框狀態（已勾選/未勾選）
+            form.querySelectorAll('input, select, textarea').forEach(el => {
+                if (el.id) { 
+                    if (el.type === 'checkbox') {
+                        formValues[el.id] = el.checked;
+                    } else {
+                        formValues[el.id] = el.value;
+                    }
+                }
+            });
 
             const deniedSymptomsState = {};
             document.querySelectorAll('.denied-sym-checkbox').forEach(cb => {
@@ -539,7 +548,10 @@
         function loadFormState() {
             try {
                 const savedStateJSON = localStorage.getItem(LOCAL_STORAGE_KEY);
-                if (!savedStateJSON) return;
+                if (!savedStateJSON) {
+                    renderDeniedSymptoms(); // 如果沒有存檔，也要渲染預設否認症狀
+                    return;
+                };
 
                 const savedState = JSON.parse(savedStateJSON);
 
@@ -554,7 +566,7 @@
                     const element = document.getElementById(key);
                     if (element) {
                         if (element.type === 'checkbox') {
-                            element.checked = savedState.formValues[key] === 'on';
+                            element.checked = savedState.formValues[key];
                         } else {
                             element.value = savedState.formValues[key];
                         }
@@ -565,26 +577,16 @@
                 renderSelectedUDs();
                 renderSelectedSymptoms();
                 renderSelectedIMP();
-                renderSelectedCC(); // 這會觸發 denied symptoms 的渲染
+                renderSelectedCC(savedState); // 將暫存狀態傳入
                 
-                // 恢復否認症狀的勾選狀態
-                const currentCC = selectedCC.length > 0 ? selectedCC[0].code : 'DEFAULT';
-                if (currentCC === savedState.deniedSymptomsCC && savedState.deniedSymptoms) {
-                    for (const key in savedState.deniedSymptoms) {
-                         const checkbox = document.querySelector(`.denied-sym-checkbox[data-key="${key}"]`);
-                         if(checkbox) {
-                             checkbox.checked = savedState.deniedSymptoms[key];
-                         }
-                    }
-                }
-
                 toggleObgynSection();
                 toggleOpdSection();
-                generateNote(); // 最後產生一次 Note
+                generateNote();
 
             } catch (error) {
                 console.error("無法載入狀態:", error);
                 localStorage.removeItem(LOCAL_STORAGE_KEY);
+                renderDeniedSymptoms(); // 發生錯誤時，渲染預設否認症狀
             }
         }
         
@@ -620,7 +622,7 @@
             if (dataArray.length === 0) {
                 container.textContent = '請搜索並選擇...';
                 container.classList.add('text-gray-400', 'italic', 'text-sm');
-                if (type !== 'CC') { // CC的generateNote在renderDeniedSymptoms中調用
+                if (type !== 'CC') {
                     generateNote();
                 }
                 return;
@@ -677,6 +679,8 @@
                         addFunction(item.code, item.english, item.chinese, item.abbr);
                         suggestionsDiv.classList.add('hidden');
                         event.target.value = '';
+                        // Explicitly save state after selection and clearing the input.
+                        saveFormState(); 
                     };
                     suggestionsDiv.appendChild(itemElement);
                 });
@@ -686,10 +690,10 @@
             }
         }
         
-        // --- CC functions (Corrected Logic) ---
-        function renderSelectedCC() {
+        // --- CC functions ---
+        function renderSelectedCC(savedState) {
             renderSelectedTags('selected-cc-tag', selectedCC, removeCC, 'CC');
-            renderDeniedSymptoms(); 
+            renderDeniedSymptoms(savedState); 
         }
 
         function addCC(code, english, chinese, abbr) {
@@ -697,9 +701,10 @@
             renderSelectedCC();
         }
 
-        function removeCC() {
+        function removeCC(code) {
             selectedCC = [];
             renderSelectedCC();
+            saveFormState();
         }
 
         function handleCCSearch(event) { 
@@ -709,21 +714,33 @@
         // --- Other selection functions ---
         function renderSelectedUDs() { renderSelectedTags('selected-ud-tags', selectedUDs, removeUD, 'UD'); }
         function addUD(code, english, chinese, abbr) { if (!selectedUDs.some(s => s.code === code)) { selectedUDs.push({ code, english, chinese, abbr }); } renderSelectedUDs(); }
-        function removeUD(code) { selectedUDs = selectedUDs.filter(s => s.code !== code); renderSelectedUDs(); }
+        function removeUD(code) { 
+            selectedUDs = selectedUDs.filter(s => s.code !== code); 
+            renderSelectedUDs(); 
+            saveFormState();
+        }
         function handleUDSearch(event) { handleSearchInput(event, 'UD', 'ud-suggestions', addUD); }
 
         function renderSelectedIMP() { renderSelectedTags('selected-imp-tag', selectedIMP, removeIMP, 'IMP'); }
         function addIMP(code, english, chinese, abbr) { selectedIMP = [{ code, english, chinese, abbr }]; renderSelectedIMP(); }
-        function removeIMP() { selectedIMP = []; renderSelectedIMP(); }
+        function removeIMP(code) { 
+            selectedIMP = []; 
+            renderSelectedIMP(); 
+            saveFormState();
+        }
         function handleIMPSearch(event) { handleSearchInput(event, 'UD', 'imp-suggestions', addIMP); }
 
         function renderSelectedSymptoms() { renderSelectedTags('selected-symptoms-tags', selectedSymptoms, removeSymptom, 'SYM'); }
         function addSymptom(code, english, chinese, abbr) { if (!selectedSymptoms.some(s => s.code === code)) { selectedSymptoms.push({ code, english: english.toLowerCase(), chinese, abbr }); } renderSelectedSymptoms(); }
-        function removeSymptom(code) { selectedSymptoms = selectedSymptoms.filter(s => s.code !== code); renderSelectedSymptoms(); }
+        function removeSymptom(code) { 
+            selectedSymptoms = selectedSymptoms.filter(s => s.code !== code); 
+            renderSelectedSymptoms(); 
+            saveFormState();
+        }
         function handleSymptomSearch(event) { handleSearchInput(event, 'SYM', 'symptom-suggestions', addSymptom); }
 
         // --- Dynamic UI Logic ---
-        function renderDeniedSymptoms() {
+        function renderDeniedSymptoms(savedState) {
             const container = document.getElementById('denied-symptoms-container');
             container.innerHTML = '';
             
@@ -733,22 +750,31 @@
 
             if (!suggestions) return;
 
+            // Determine whether to use saved state or default state for checkboxes
+            const useSavedState = savedState && savedState.deniedSymptomsCC === ccCode;
+            const deniedState = useSavedState ? savedState.deniedSymptoms : {};
+
             suggestions.forEach(item => {
                 const label = document.createElement('label');
                 label.className = 'inline-flex items-center';
                 const displayText = item.chinese ? `${item.english} (${item.chinese})` : item.english;
-                label.innerHTML = `<input type="checkbox" data-key="${item.key}" ${item.checked ? 'checked' : ''} class="denied-sym-checkbox form-checkbox text-red-500 rounded"><span class="ml-2 text-gray-700" data-english-text="${item.english}">${displayText}</span>`;
+                // If saved state for this item exists, use it; otherwise, use the default 'checked' property
+                const isChecked = deniedState.hasOwnProperty(item.key) ? deniedState[item.key] : item.checked;
+                
+                label.innerHTML = `<input type="checkbox" data-key="${item.key}" ${isChecked ? 'checked' : ''} class="denied-sym-checkbox form-checkbox text-red-500 rounded"><span class="ml-2 text-gray-700" data-english-text="${item.english}">${displayText}</span>`;
                 container.appendChild(label);
             });
             
-            // BUG FIX: Ensure checkbox changes call both generateNote and saveFormState
             container.querySelectorAll('.denied-sym-checkbox').forEach(checkbox => {
                 checkbox.addEventListener('change', () => {
                     generateNote();
                     saveFormState();
                 });
             });
-            generateNote(); // 確保在渲染否認症狀後立即更新Note
+
+            if (!savedState) { // Only call generateNote if we are not in the middle of loading
+                generateNote();
+            }
         }
 
         function toggleObgynSection() {
@@ -909,6 +935,7 @@
             const gcsE = document.getElementById('gcs-e').value;
             const gcsV = document.getElementById('gcs-v').value;
             const gcsM = document.getElementById('gcs-m').value;
+            // GCS text generation updated to handle non-numeric values
             if (gcsE || gcsV || gcsM) {
                 erSentences.push(`The mental status was ${mental} with Glasgow coma scale of E${gcsE || '_'}V${gcsV || '_'}M${gcsM || '_'}.`);
             } else {
@@ -956,10 +983,10 @@
 
         // Event Listeners Setup
         document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('note-form');
-            form.addEventListener('input', () => {
+            // The main 'input' event listener is now just for live updates, not the primary save trigger for selections.
+            document.getElementById('note-form').addEventListener('input', () => {
                 generateNote();
-                saveFormState(); // 在每次輸入後都儲存狀態
+                saveFormState();
             });
 
             document.getElementById('gender').addEventListener('change', toggleObgynSection);
@@ -995,10 +1022,9 @@
             document.getElementById('clear-form-button').addEventListener('click', clearFormState);
 
             // Initial Render
-            loadFormState(); // 頁面載入時，嘗試恢復上次的狀態
+            loadFormState();
         });
     </script>
 </body>
 </html>
-
 
